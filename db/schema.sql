@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS pedidos (
 );
 
 CREATE INDEX IF NOT EXISTS pedidos_data_idx ON pedidos (data);
+CREATE INDEX IF NOT EXISTS pedidos_contato_idx ON pedidos (contato_id);
 CREATE INDEX IF NOT EXISTS pedidos_loja_idx ON pedidos (loja_id);
 CREATE INDEX IF NOT EXISTS pedidos_situacao_idx ON pedidos (situacao_id);
 
@@ -127,7 +128,6 @@ CREATE TABLE IF NOT EXISTS itens_pedido (
   UNIQUE (pedido_id, item_index)
 );
 
-CREATE INDEX IF NOT EXISTS itens_pedido_pedido_idx ON itens_pedido (pedido_id);
 CREATE INDEX IF NOT EXISTS itens_pedido_produto_idx ON itens_pedido (produto_id);
 
 CREATE TABLE IF NOT EXISTS estoque_movimentos (
@@ -147,6 +147,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS estoque_movimentos_bling_id_uq
   WHERE bling_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS estoque_movimentos_produto_idx ON estoque_movimentos (produto_id);
+CREATE INDEX IF NOT EXISTS estoque_movimentos_data_idx ON estoque_movimentos (data_movimento);
 
 CREATE TABLE IF NOT EXISTS notas_fiscais (
   id         BIGINT PRIMARY KEY,
@@ -178,6 +179,7 @@ CREATE TABLE IF NOT EXISTS contas_receber (
 );
 
 CREATE INDEX IF NOT EXISTS contas_receber_vencimento_idx ON contas_receber (data_vencimento);
+CREATE INDEX IF NOT EXISTS contas_receber_situacao_idx ON contas_receber (situacao);
 
 CREATE TABLE IF NOT EXISTS contas_pagar (
   id            BIGINT PRIMARY KEY,
@@ -194,3 +196,4 @@ CREATE TABLE IF NOT EXISTS contas_pagar (
 );
 
 CREATE INDEX IF NOT EXISTS contas_pagar_vencimento_idx ON contas_pagar (data_vencimento);
+CREATE INDEX IF NOT EXISTS contas_pagar_situacao_idx ON contas_pagar (situacao);

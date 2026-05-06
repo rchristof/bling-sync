@@ -7,10 +7,11 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-COPY . .
-RUN mkdir -p /app/logs && chown -R node:node /app
+COPY --chown=node:node . .
 
 USER node
+
+RUN mkdir -p /app/logs
 
 EXPOSE 3000
 
