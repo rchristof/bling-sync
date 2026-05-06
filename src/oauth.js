@@ -72,6 +72,7 @@ async function requestToken(params, previousToken = {}) {
         'Content-Type': 'application/x-www-form-urlencoded',
         'enable-jwt': '1',
       },
+      timeout: 15000,
     }
   );
 

@@ -32,6 +32,7 @@ async function backfillPedidos(options = {}) {
   }
 
   await syncState('pedidos', { ...options, count: pedidos.length });
+  log('info', 'pedidos synced', { count: pedidos.length });
 }
 
 async function backfillListEntity(entity, resourcePath, upsert, options = {}) {
@@ -39,6 +40,7 @@ async function backfillListEntity(entity, resourcePath, upsert, options = {}) {
   if (options.desde) params.dataInicial = options.desde;
   if (options.ate) params.dataFinal = options.ate;
 
+  log('info', `${entity} fetching`, { params });
   const items = await fetchPaginated(resourcePath, params);
   log('info', `${entity} list fetched`, { count: items.length, params });
 
@@ -47,6 +49,7 @@ async function backfillListEntity(entity, resourcePath, upsert, options = {}) {
   }
 
   await syncState(entity, { ...options, count: items.length });
+  log('info', `${entity} synced`, { count: items.length });
 }
 
 async function runBackfill(options = {}) {
@@ -57,18 +60,29 @@ async function runBackfill(options = {}) {
 
   log('info', 'backfill started', { entities, desde: options.desde, ate: options.ate });
 
+  const failed = [];
+
   for (const entity of entities) {
-    if (entity === 'pedidos') await backfillPedidos(options);
-    else if (entity === 'produtos') await backfillListEntity(entity, endpoints.produtos, upsertProduto, options);
-    else if (entity === 'contatos') await backfillListEntity(entity, endpoints.contatos, upsertContato, options);
-    else if (entity === 'notas_fiscais') await backfillListEntity(entity, endpoints.notas_fiscais, upsertNotaFiscal, options);
-    else if (entity === 'contas_receber') await backfillListEntity(entity, endpoints.contas_receber, item => upsertConta('contas_receber', item), options);
-    else if (entity === 'contas_pagar') await backfillListEntity(entity, endpoints.contas_pagar, item => upsertConta('contas_pagar', item), options);
-    else if (entity === 'estoque_movimentos') await backfillListEntity(entity, endpoints.estoque_movimentos, upsertEstoqueMovimento, options);
-    else log('warn', 'unknown backfill entity ignored', { entity });
+    try {
+      if (entity === 'pedidos') await backfillPedidos(options);
+      else if (entity === 'produtos') await backfillListEntity(entity, endpoints.produtos, upsertProduto, options);
+      else if (entity === 'contatos') await backfillListEntity(entity, endpoints.contatos, upsertContato, options);
+      else if (entity === 'notas_fiscais') await backfillListEntity(entity, endpoints.notas_fiscais, upsertNotaFiscal, options);
+      else if (entity === 'contas_receber') await backfillListEntity(entity, endpoints.contas_receber, item => upsertConta('contas_receber', item), options);
+      else if (entity === 'contas_pagar') await backfillListEntity(entity, endpoints.contas_pagar, item => upsertConta('contas_pagar', item), options);
+      else if (entity === 'estoque_movimentos') await backfillListEntity(entity, endpoints.estoque_movimentos, upsertEstoqueMovimento, options);
+      else log('warn', 'unknown backfill entity ignored', { entity });
+    } catch (err) {
+      log('error', `${entity} backfill failed`, { entity, error: err.message });
+      failed.push(entity);
+    }
   }
 
-  log('info', 'backfill finished', { entities });
+  if (failed.length > 0) {
+    log('warn', 'backfill finished with errors', { failed, succeeded: entities.filter(e => !failed.includes(e)) });
+  } else {
+    log('info', 'backfill finished', { entities });
+  }
 }
 
 async function runReconciliation() {
