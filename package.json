@@ -2,15 +2,16 @@
   "name": "bling-sync",
   "version": "1.0.0",
   "description": "",
-  "main": "server.js",
+  "main": "dist/src/main.js",
   "scripts": {
-    "start": "node server.js",
-    "migrate": "node server.js migrate",
-    "sync": "node server.js sync",
-    "backfill": "node server.js backfill",
-    "reconcile": "node server.js reconcile",
-    "worker": "node server.js worker",
-    "check": "node --check server.js",
+    "build": "tsc",
+    "start": "node dist/src/main.js",
+    "migrate": "node dist/src/main.js migrate",
+    "sync": "node dist/src/main.js sync",
+    "backfill": "node dist/src/main.js backfill",
+    "reconcile": "node dist/src/main.js reconcile",
+    "worker": "node dist/src/main.js worker",
+    "check": "tsc --noEmit",
     "test": "npm run check"
   },
   "keywords": [],
@@ -21,5 +22,11 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "pg": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.6.0",
+    "@types/pg": "^8.20.0",
+    "typescript": "^6.0.3"
   }
 }

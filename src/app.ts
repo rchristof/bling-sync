@@ -1,12 +1,10 @@
 const crypto = require('crypto');
 const express = require('express');
-const { APP_NAME, BLING_OAUTH_BASE_URL, PORT, WEBHOOK_SECRET } = require('./config');
+const { APP_NAME, BLING_CLIENT_ID, BLING_OAUTH_BASE_URL, PORT } = require('./config');
 const { pool } = require('./db');
 const { exchangeAuthorizationCode, loadToken } = require('./oauth');
 const { log } = require('./logger');
-const { runBackfill, runReconciliation } = require('./sync');
-const { json, requiredEnv, valueOrNull } = require('./utils');
-const { webhookEntityFromEvent } = require('./webhooks');
+const { enqueueWebhook, verifyBlingSignature } = require('./webhooks');
 
 function createApp() {
   const app = express();
@@ -45,6 +43,7 @@ function createApp() {
       await pool.query('SELECT 1');
       res.json({ status: 'ok' });
     } catch (err) {
+      log('error', 'readiness check failed', { error: err.message });
       res.status(503).json({ status: 'error', error: err.message });
     }
   });
@@ -53,7 +52,7 @@ function createApp() {
     const state = crypto.randomBytes(16).toString('hex');
     const url = new URL(`${BLING_OAUTH_BASE_URL}/authorize`);
     url.searchParams.set('response_type', 'code');
-    url.searchParams.set('client_id', requiredEnv('BLING_CLIENT_ID'));
+    url.searchParams.set('client_id', BLING_CLIENT_ID);
     url.searchParams.set('state', state);
     res.redirect(url.toString());
   });
@@ -71,6 +70,7 @@ function createApp() {
         isExpired: expiresAt ? Date.now() >= expiresAt.getTime() : null,
       });
     } catch (err) {
+      log('error', 'auth status check failed', { error: err.message });
       res.status(500).json({ status: 'error', error: err.message });
     }
   });
@@ -99,54 +99,41 @@ function createApp() {
   app.get('/auth/callback', handleOAuthCallback);
 
   app.post('/webhooks/bling', async (req, res) => {
-    if (WEBHOOK_SECRET) {
-      const bearer = req.headers['authorization']?.replace(/^Bearer /i, '');
-      const query = req.query?.secret;
-      if (bearer !== WEBHOOK_SECRET && query !== WEBHOOK_SECRET) {
-        res.status(401).json({ status: 'unauthorized' });
-        return;
-      }
+    const signature = req.headers['x-bling-signature-256'];
+
+    if (!verifyBlingSignature(req.rawBody, signature)) {
+      log('warn', 'webhook signature invalid', {
+        hasSignature: Boolean(signature),
+        ip: req.ip,
+      });
+      res.status(401).json({ status: 'unauthorized' });
+      return;
     }
 
-    const payload = req.body || {};
-    const { resource, action } = webhookEntityFromEvent(payload.event);
-
-    await pool.query(
-      `INSERT INTO bling_webhook_events (
-         event_id, event_name, resource, action, company_id, event_date,
-         payload, headers, raw_body, received_at, status
-       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), 'pending')
-       ON CONFLICT (event_id) WHERE event_id IS NOT NULL DO UPDATE SET
-         payload = EXCLUDED.payload,
-         headers = EXCLUDED.headers,
-         raw_body = EXCLUDED.raw_body
-       RETURNING id`,
-      [
-        valueOrNull(payload.eventId),
-        valueOrNull(payload.event),
-        valueOrNull(resource),
-        valueOrNull(action),
-        valueOrNull(payload.companyId),
-        valueOrNull(payload.date),
-        json(payload),
-        json(req.headers),
-        req.rawBody || json(payload),
-      ]
-    );
+    try {
+      await enqueueWebhook(req.body, req.headers, req.rawBody);
+    } catch (err) {
+      log('error', 'webhook enqueue failed', {
+        error: err.message,
+        event: req.body?.event,
+        eventId: req.body?.eventId,
+      });
+      res.status(500).json({ status: 'error' });
+      return;
+    }
 
     res.status(202).json({ status: 'accepted' });
   });
 
-  app.post('/jobs/backfill', async (req, res) => {
-    const options = { ...req.body };
-    runBackfill(options).catch(err => log('error', 'async backfill failed', { error: err.message }));
-    res.status(202).json({ status: 'started', job: 'backfill', options });
-  });
-
-  app.post('/jobs/reconcile', async (_req, res) => {
-    runReconciliation().catch(err => log('error', 'async reconciliation failed', { error: err.message }));
-    res.status(202).json({ status: 'started', job: 'reconciliation' });
+  app.use((err, req, res, _next) => {
+    log('error', 'unhandled http error', {
+      error: err.message,
+      stack: err.stack,
+      method: req.method,
+      path: req.path,
+    });
+    if (res.headersSent) return;
+    res.status(500).json({ status: 'error', error: err.message });
   });
 
   return app;

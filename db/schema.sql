@@ -130,25 +130,6 @@ CREATE TABLE IF NOT EXISTS itens_pedido (
 
 CREATE INDEX IF NOT EXISTS itens_pedido_produto_idx ON itens_pedido (produto_id);
 
-CREATE TABLE IF NOT EXISTS estoque_movimentos (
-  id              BIGSERIAL PRIMARY KEY,
-  bling_id        BIGINT,
-  produto_id      BIGINT,
-  data_movimento  TIMESTAMPTZ,
-  tipo            TEXT,
-  quantidade      NUMERIC(15,4),
-  saldo           NUMERIC(15,4),
-  raw             JSONB,
-  synced_at       TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS estoque_movimentos_bling_id_uq
-  ON estoque_movimentos (bling_id)
-  WHERE bling_id IS NOT NULL;
-
-CREATE INDEX IF NOT EXISTS estoque_movimentos_produto_idx ON estoque_movimentos (produto_id);
-CREATE INDEX IF NOT EXISTS estoque_movimentos_data_idx ON estoque_movimentos (data_movimento);
-
 CREATE TABLE IF NOT EXISTS notas_fiscais (
   id         BIGINT PRIMARY KEY,
   numero     TEXT,

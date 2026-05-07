@@ -1,21 +1,25 @@
 const axios = require('axios');
 const fs = require('fs');
-const { BLING_OAUTH_BASE_URL, TOKEN_EXPIRY_SKEW_MS, TOKEN_FILE } = require('./config');
+const { BLING_CLIENT_ID, BLING_CLIENT_SECRET, BLING_OAUTH_BASE_URL, TOKEN_EXPIRY_SKEW_MS, TOKEN_FILE } = require('./config');
 const { pool } = require('./db');
 const { log } = require('./logger');
-const { json, requiredEnv } = require('./utils');
 
 function basicAuthHeader() {
-  const clientId = requiredEnv('BLING_CLIENT_ID');
-  const clientSecret = requiredEnv('BLING_CLIENT_SECRET');
-  return `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`;
+  return `Basic ${Buffer.from(`${BLING_CLIENT_ID}:${BLING_CLIENT_SECRET}`).toString('base64')}`;
 }
 
 async function seedTokenFromFileIfNeeded() {
   const { rows } = await pool.query('SELECT id FROM bling_oauth_tokens WHERE id = $1', ['default']);
   if (rows.length > 0 || !fs.existsSync(TOKEN_FILE)) return;
 
-  const token = JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8'));
+  let token;
+  try {
+    token = JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8'));
+  } catch (err) {
+    log('error', 'failed to read .token.json seed file', { error: err.message, path: TOKEN_FILE });
+    return;
+  }
+
   await saveToken(token);
   log('info', 'oauth token imported from .token.json');
 }
@@ -32,7 +36,7 @@ function parseDateOrNull(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function resolveTokenExpiresAt(token, previousToken = {}) {
+function resolveTokenExpiresAt(token, previousToken: any = {}) {
   const explicitExpiresAt = parseDateOrNull(token.expires_at);
   if (explicitExpiresAt) return explicitExpiresAt;
 
@@ -44,7 +48,7 @@ function resolveTokenExpiresAt(token, previousToken = {}) {
   return new Date(baseTime + expiresIn * 1000);
 }
 
-async function saveToken(token, previousToken = {}) {
+async function saveToken(token, previousToken: any = {}) {
   const expiresIn = Number(token.expires_in || previousToken.expires_in || 0);
   const expiresAt = resolveTokenExpiresAt(token, previousToken);
 
@@ -70,7 +74,7 @@ async function saveToken(token, previousToken = {}) {
       token.scope || previousToken.scope || null,
       expiresIn || previousToken.expires_in || null,
       expiresAt,
-      json(token),
+      JSON.stringify(token || {}),
     ]
   );
 }

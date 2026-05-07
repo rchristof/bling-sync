@@ -36,7 +36,6 @@ services:
       BLING_REDIRECT_URI: ${BLING_REDIRECT_URI:-http://localhost:3002/callback}
       RUN_WORKER: ${RUN_WORKER:-true}
       RUN_DAILY_RECONCILIATION: ${RUN_DAILY_RECONCILIATION:-true}
-      RUN_INITIAL_BACKFILL: ${RUN_INITIAL_BACKFILL:-false}
       LOG_FILE: ${LOG_FILE:-/app/logs/bling-sync.log}
     depends_on:
       postgres:

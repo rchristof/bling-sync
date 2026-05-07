@@ -1,5 +1,47 @@
 const { pool } = require('./db');
-const { dateOrNull, idOrNull, json, numberOrNull, valueOrNull } = require('./utils');
+
+function blankToNull(value) {
+  return value === undefined || value === '' ? null : value;
+}
+
+function toNumber(value) {
+  const normalized = blankToNull(value);
+  if (normalized === null) return null;
+
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : null;
+}
+
+function toId(value) {
+  const id = toNumber(value);
+  return id && id > 0 ? id : null;
+}
+
+function toDate(value) {
+  const normalized = blankToNull(value);
+  if (!normalized) return null;
+
+  const match = String(normalized).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return null;
+
+  const [, year, month, day] = match;
+  const date = `${year}-${month}-${day}`;
+  const parsed = new Date(`${date}T00:00:00Z`);
+
+  if (
+    parsed.getUTCFullYear() !== Number(year) ||
+    parsed.getUTCMonth() + 1 !== Number(month) ||
+    parsed.getUTCDate() !== Number(day)
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
+function toJson(value) {
+  return JSON.stringify(value || {});
+}
 
 async function upsertContato(contato, client = pool) {
   if (!contato?.id) return;
@@ -17,12 +59,12 @@ async function upsertContato(contato, client = pool) {
        synced_at        = NOW()`,
     [
       contato.id,
-      valueOrNull(contato.nome),
-      valueOrNull(contato.tipoPessoa || contato.tipo),
-      valueOrNull(contato.numeroDocumento),
-      valueOrNull(contato.email),
-      valueOrNull(contato.telefone || contato.celular),
-      json(contato),
+      blankToNull(contato.nome),
+      blankToNull(contato.tipoPessoa || contato.tipo),
+      blankToNull(contato.numeroDocumento),
+      blankToNull(contato.email),
+      blankToNull(contato.telefone || contato.celular),
+      toJson(contato),
     ]
   );
 }
@@ -59,23 +101,23 @@ async function upsertProduto(produto, client = pool) {
        deleted_at      = NULL`,
     [
       produto.id,
-      valueOrNull(produto.nome),
-      valueOrNull(produto.codigo),
-      numberOrNull(produto.preco),
-      numberOrNull(produto.precoCusto || produto.fornecedor?.precoCusto),
-      numberOrNull(produto.estoque?.saldoVirtualTotal),
-      valueOrNull(produto.tipo),
-      valueOrNull(produto.situacao),
-      valueOrNull(produto.formato),
-      valueOrNull(produto.unidade),
-      valueOrNull(produto.marca),
-      idOrNull(produto.categoria?.id),
-      idOrNull(produto.fornecedor?.id),
-      valueOrNull(produto.fornecedor?.contato?.nome),
-      valueOrNull(produto.gtin),
-      valueOrNull(produto.tributacao?.ncm),
+      blankToNull(produto.nome),
+      blankToNull(produto.codigo),
+      toNumber(produto.preco),
+      toNumber(produto.precoCusto || produto.fornecedor?.precoCusto),
+      toNumber(produto.estoque?.saldoVirtualTotal),
+      blankToNull(produto.tipo),
+      blankToNull(produto.situacao),
+      blankToNull(produto.formato),
+      blankToNull(produto.unidade),
+      blankToNull(produto.marca),
+      toId(produto.categoria?.id),
+      toId(produto.fornecedor?.id),
+      blankToNull(produto.fornecedor?.contato?.nome),
+      blankToNull(produto.gtin),
+      blankToNull(produto.tributacao?.ncm),
       produto.imagemURL || produto.midia?.imagens?.internas?.[0]?.link || null,
-      json(produto),
+      toJson(produto),
     ]
   );
 }
@@ -113,22 +155,22 @@ async function upsertPedido(pedido, client = pool) {
        deleted_at                 = NULL`,
     [
       pedido.id,
-      valueOrNull(pedido.numero),
-      valueOrNull(pedido.numeroLoja),
-      dateOrNull(pedido.data),
-      dateOrNull(pedido.dataSaida),
-      dateOrNull(pedido.dataPrevista),
-      numberOrNull(pedido.totalProdutos),
-      numberOrNull(pedido.total),
-      idOrNull(pedido.contato?.id),
-      idOrNull(pedido.situacao?.id),
-      valueOrNull(pedido.situacao?.valor),
-      idOrNull(pedido.loja?.id),
-      idOrNull(pedido.loja?.unidadeNegocio?.id),
-      idOrNull(pedido.notaFiscal?.id),
-      idOrNull(pedido.vendedor?.id),
-      valueOrNull(pedido.intermediador?.nomeUsuario),
-      json(pedido),
+      blankToNull(pedido.numero),
+      blankToNull(pedido.numeroLoja),
+      toDate(pedido.data),
+      toDate(pedido.dataSaida),
+      toDate(pedido.dataPrevista),
+      toNumber(pedido.totalProdutos),
+      toNumber(pedido.total),
+      toId(pedido.contato?.id),
+      toId(pedido.situacao?.id),
+      blankToNull(pedido.situacao?.valor),
+      toId(pedido.loja?.id),
+      toId(pedido.loja?.unidadeNegocio?.id),
+      toId(pedido.notaFiscal?.id),
+      toId(pedido.vendedor?.id),
+      blankToNull(pedido.intermediador?.nomeUsuario),
+      toJson(pedido),
     ]
   );
 
@@ -159,17 +201,17 @@ async function upsertPedido(pedido, client = pool) {
           item.id,
           pedido.id,
           index,
-          idOrNull(item.produto?.id),
-          valueOrNull(item.codigo),
-          valueOrNull(item.descricao),
-          valueOrNull(item.unidade),
-          numberOrNull(item.quantidade),
-          numberOrNull(item.valor),
-          numberOrNull(item.quantidade) !== null && numberOrNull(item.valor) !== null
-            ? numberOrNull(item.quantidade) * numberOrNull(item.valor)
+          toId(item.produto?.id),
+          blankToNull(item.codigo),
+          blankToNull(item.descricao),
+          blankToNull(item.unidade),
+          toNumber(item.quantidade),
+          toNumber(item.valor),
+          toNumber(item.quantidade) !== null && toNumber(item.valor) !== null
+            ? toNumber(item.quantidade) * toNumber(item.valor)
             : null,
-          numberOrNull(item.desconto),
-          json(item),
+          toNumber(item.desconto),
+          toJson(item),
         ]
       );
     }
@@ -189,13 +231,13 @@ async function upsertNotaFiscal(nota, client = pool) {
        raw = EXCLUDED.raw, synced_at = NOW(), deleted_at = NULL`,
     [
       nota.id,
-      valueOrNull(nota.numero),
-      valueOrNull(nota.serie),
-      dateOrNull(nota.dataEmissao || nota.dataOperacao || nota.data),
-      numberOrNull(nota.valorNota || nota.total || nota.valor),
-      idOrNull(nota.contato?.id),
-      valueOrNull(nota.situacao?.valor || nota.situacao?.id || nota.situacao),
-      json(nota),
+      blankToNull(nota.numero),
+      blankToNull(nota.serie),
+      toDate(nota.dataEmissao || nota.dataOperacao || nota.data),
+      toNumber(nota.valorNota || nota.total || nota.valor),
+      toId(nota.contato?.id),
+      blankToNull(nota.situacao?.valor || nota.situacao?.id || nota.situacao),
+      toJson(nota),
     ]
   );
 }
@@ -216,34 +258,14 @@ async function upsertConta(table, conta, client = pool) {
        raw = EXCLUDED.raw, synced_at = NOW(), deleted_at = NULL`,
     [
       conta.id,
-      idOrNull(conta.contato?.id),
-      dateOrNull(conta.dataEmissao || conta.data),
-      dateOrNull(conta.dataVencimento || conta.vencimento),
-      dateOrNull(conta.dataPagamento || conta.pagamento),
-      numberOrNull(conta.valor),
-      numberOrNull(conta.saldo),
-      valueOrNull(conta.situacao?.valor || conta.situacao?.id || conta.situacao),
-      json(conta),
-    ]
-  );
-}
-
-async function upsertEstoqueMovimento(item, client = pool) {
-  await client.query(
-    `INSERT INTO estoque_movimentos (bling_id, produto_id, data_movimento, tipo, quantidade, saldo, raw, synced_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-     ON CONFLICT (bling_id) WHERE bling_id IS NOT NULL DO UPDATE SET
-       produto_id = EXCLUDED.produto_id, data_movimento = EXCLUDED.data_movimento,
-       tipo = EXCLUDED.tipo, quantidade = EXCLUDED.quantidade, saldo = EXCLUDED.saldo,
-       raw = EXCLUDED.raw, synced_at = NOW()`,
-    [
-      idOrNull(item.id),
-      idOrNull(item.produto?.id || item.produtoId),
-      valueOrNull(item.data || item.dataMovimento),
-      valueOrNull(item.tipo || item.operacao),
-      numberOrNull(item.quantidade),
-      numberOrNull(item.saldo),
-      json(item.raw || item),
+      toId(conta.contato?.id),
+      toDate(conta.dataEmissao || conta.data),
+      toDate(conta.dataVencimento || conta.vencimento),
+      toDate(conta.dataPagamento || conta.pagamento),
+      toNumber(conta.valor),
+      toNumber(conta.saldo),
+      blankToNull(conta.situacao?.valor || conta.situacao?.id || conta.situacao),
+      toJson(conta),
     ]
   );
 }
@@ -256,7 +278,7 @@ async function syncState(entity, metadata = {}) {
        last_synced_at = NOW(),
        metadata = EXCLUDED.metadata,
        updated_at = NOW()`,
-    [entity, json(metadata)]
+    [entity, toJson(metadata)]
   );
 }
 
@@ -266,6 +288,5 @@ module.exports = {
   upsertPedido,
   upsertNotaFiscal,
   upsertConta,
-  upsertEstoqueMovimento,
   syncState,
 };

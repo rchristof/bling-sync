@@ -2,7 +2,10 @@ const axios = require('axios');
 const { BLING_API_BASE_URL, REQUEST_DELAY_MS } = require('./config');
 const { getValidAccessToken, refreshAccessToken } = require('./oauth');
 const { log } = require('./logger');
-const { sleep } = require('./utils');
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 function apiUrl(resourcePath) {
   const base = BLING_API_BASE_URL.replace(/\/$/, '');
@@ -52,7 +55,7 @@ async function blingGet(resourcePath, params = {}) {
   throw new Error('Bling API request failed');
 }
 
-async function fetchPaginated(resourcePath, params = {}, options = {}) {
+async function fetchPaginated(resourcePath, params = {}, options: any = {}) {
   const items = [];
   let pagina = 1;
   const maxPages = Number(options.maxPages || 0);

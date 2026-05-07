@@ -1,10 +1,24 @@
+require('dotenv').config();
+
 const { ensureSchema, pool } = require('./db');
 const { createApp, listen } = require('./app');
 const { log } = require('./logger');
 const { seedTokenFromFileIfNeeded } = require('./oauth');
-const { runBackfill, runReconciliation } = require('./sync');
-const { parseCliOptions } = require('./utils');
+const { ensureInitialBackfill, runBackfill, runReconciliation } = require('./sync');
 const { startDailyReconciliation, startWorker } = require('./worker');
+
+function parseCliOptions(args) {
+  const options = {};
+
+  for (const arg of args) {
+    if (!arg.startsWith('--')) continue;
+    const [rawKey, rawValue] = arg.slice(2).split('=');
+    const key = rawKey.replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
+    options[key] = rawValue === undefined ? true : rawValue;
+  }
+
+  return options;
+}
 
 async function startServer() {
   await ensureSchema();
@@ -26,12 +40,7 @@ async function startServer() {
 
   if (process.env.RUN_WORKER !== 'false') startWorker();
   if (process.env.RUN_DAILY_RECONCILIATION !== 'false') startDailyReconciliation();
-  if (process.env.RUN_INITIAL_BACKFILL === 'true') {
-    runBackfill({
-      desde: process.env.BACKFILL_START_DATE,
-      entities: process.env.BACKFILL_ENTITIES,
-    }).catch(err => log('error', 'initial backfill failed', { error: err.message }));
-  }
+  ensureInitialBackfill().catch(err => log('error', 'initial backfill failed', { error: err.message }));
 }
 
 async function main() {
@@ -60,7 +69,7 @@ async function main() {
   await pool.end();
 }
 
-process.on('unhandledRejection', err => {
+process.on('unhandledRejection', (err: any) => {
   log('error', 'unhandled rejection', { error: err.message, stack: err.stack });
 });
 
@@ -68,5 +77,12 @@ process.on('uncaughtException', err => {
   log('error', 'uncaught exception', { error: err.message, stack: err.stack });
   process.exit(1);
 });
+
+if (require.main === module) {
+  main().catch((err: any) => {
+    log('error', 'fatal error', { error: err.message, stack: err.stack });
+    process.exit(1);
+  });
+}
 
 module.exports = { main };
