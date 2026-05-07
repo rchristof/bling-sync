@@ -9,9 +9,9 @@ RUN npm ci --omit=dev
 
 COPY --chown=node:node . .
 
-USER node
+RUN mkdir -p /app/logs && chown node:node /app/logs
 
-RUN mkdir -p /app/logs
+USER node
 
 EXPOSE 3000
 

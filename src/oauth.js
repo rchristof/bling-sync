@@ -25,10 +25,28 @@ async function loadToken() {
   return rows[0] || null;
 }
 
-async function saveToken(token, previousToken = {}) {
-  const now = Date.now();
+function parseDateOrNull(value) {
+  if (!value) return null;
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function resolveTokenExpiresAt(token, previousToken = {}) {
+  const explicitExpiresAt = parseDateOrNull(token.expires_at);
+  if (explicitExpiresAt) return explicitExpiresAt;
+
   const expiresIn = Number(token.expires_in || previousToken.expires_in || 0);
-  const expiresAt = expiresIn > 0 ? new Date(now + expiresIn * 1000) : null;
+  if (!expiresIn) return null;
+
+  const savedAt = parseDateOrNull(token.saved_at);
+  const baseTime = savedAt ? savedAt.getTime() : Date.now();
+  return new Date(baseTime + expiresIn * 1000);
+}
+
+async function saveToken(token, previousToken = {}) {
+  const expiresIn = Number(token.expires_in || previousToken.expires_in || 0);
+  const expiresAt = resolveTokenExpiresAt(token, previousToken);
 
   await pool.query(
     `INSERT INTO bling_oauth_tokens (
@@ -63,18 +81,26 @@ function tokenIsExpiring(token) {
 }
 
 async function requestToken(params, previousToken = {}) {
-  const { data } = await axios.post(
-    `${BLING_OAUTH_BASE_URL}/token`,
-    new URLSearchParams(params),
-    {
-      headers: {
-        Authorization: basicAuthHeader(),
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'enable-jwt': '1',
-      },
-      timeout: 15000,
-    }
-  );
+  let data;
+
+  try {
+    ({ data } = await axios.post(
+      `${BLING_OAUTH_BASE_URL}/token`,
+      new URLSearchParams(params),
+      {
+        headers: {
+          Authorization: basicAuthHeader(),
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'enable-jwt': '1',
+        },
+        timeout: 15000,
+      }
+    ));
+  } catch (err) {
+    const status = err.response?.status;
+    const details = err.response?.data || err.message;
+    throw new Error(`Bling OAuth error ${status || err.code || ''}: ${JSON.stringify(details)}`);
+  }
 
   await saveToken(data, previousToken);
   return data;

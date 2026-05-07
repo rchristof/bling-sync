@@ -18,7 +18,7 @@ docker compose up -d --build
 Configure no Bling o redirect URI:
 
 ```text
-http://localhost:3002/auth/callback
+http://localhost:3002/callback
 ```
 
 Autorize o aplicativo em:

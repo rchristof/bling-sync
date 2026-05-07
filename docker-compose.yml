@@ -33,7 +33,7 @@ services:
       TZ: ${TZ:-America/Sao_Paulo}
       DATABASE_URL: postgres://${POSTGRES_USER:-bling}:${POSTGRES_PASSWORD:-blingpass}@postgres:5432/${POSTGRES_DB:-blingdb}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3002}
-      BLING_REDIRECT_URI: ${BLING_REDIRECT_URI:-http://localhost:3002/auth/callback}
+      BLING_REDIRECT_URI: ${BLING_REDIRECT_URI:-http://localhost:3002/callback}
       RUN_WORKER: ${RUN_WORKER:-true}
       RUN_DAILY_RECONCILIATION: ${RUN_DAILY_RECONCILIATION:-true}
       RUN_INITIAL_BACKFILL: ${RUN_INITIAL_BACKFILL:-false}

@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const express = require('express');
 const { APP_NAME, BLING_OAUTH_BASE_URL, PORT, WEBHOOK_SECRET } = require('./config');
 const { pool } = require('./db');
-const { exchangeAuthorizationCode } = require('./oauth');
+const { exchangeAuthorizationCode, loadToken } = require('./oauth');
 const { log } = require('./logger');
 const { runBackfill, runReconciliation } = require('./sync');
 const { json, requiredEnv, valueOrNull } = require('./utils');
@@ -58,7 +58,24 @@ function createApp() {
     res.redirect(url.toString());
   });
 
-  app.get('/auth/callback', async (req, res) => {
+  app.get('/auth/status', async (_req, res) => {
+    try {
+      const token = await loadToken();
+      const expiresAt = token?.expires_at ? new Date(token.expires_at) : null;
+
+      res.json({
+        hasToken: Boolean(token),
+        hasAccessToken: Boolean(token?.access_token),
+        hasRefreshToken: Boolean(token?.refresh_token),
+        expiresAt: expiresAt ? expiresAt.toISOString() : null,
+        isExpired: expiresAt ? Date.now() >= expiresAt.getTime() : null,
+      });
+    } catch (err) {
+      res.status(500).json({ status: 'error', error: err.message });
+    }
+  });
+
+  const handleOAuthCallback = async (req, res) => {
     try {
       if (req.query.error) {
         res.status(400).send(`Bling authorization error: ${req.query.error_description || req.query.error}`);
@@ -76,7 +93,10 @@ function createApp() {
       log('error', 'oauth callback failed', { error: err.message });
       res.status(500).send(err.message);
     }
-  });
+  };
+
+  app.get('/callback', handleOAuthCallback);
+  app.get('/auth/callback', handleOAuthCallback);
 
   app.post('/webhooks/bling', async (req, res) => {
     if (WEBHOOK_SECRET) {
