@@ -243,7 +243,7 @@ async function upsertEstoqueMovimento(item, client = pool) {
       valueOrNull(item.tipo || item.operacao),
       numberOrNull(item.quantidade),
       numberOrNull(item.saldo),
-      json(item),
+      json(item.raw || item),
     ]
   );
 }

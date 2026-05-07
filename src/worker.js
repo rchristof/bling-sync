@@ -34,17 +34,23 @@ async function dailyReconciliationAlreadyRanToday() {
 }
 
 function startDailyReconciliation() {
+  let running = false;
+
   setInterval(async () => {
     const hour = new Date().getHours();
+    if (running) return;
     if (hour !== DAILY_RECONCILIATION_HOUR) return;
     if (await dailyReconciliationAlreadyRanToday()) return;
 
+    running = true;
     try {
       log('info', 'daily reconciliation started');
       await runReconciliation();
       log('info', 'daily reconciliation finished');
     } catch (err) {
       log('error', 'daily reconciliation failed', { error: err.message });
+    } finally {
+      running = false;
     }
   }, 60 * 1000);
 

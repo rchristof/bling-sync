@@ -52,15 +52,17 @@ async function blingGet(resourcePath, params = {}) {
   throw new Error('Bling API request failed');
 }
 
-async function fetchPaginated(resourcePath, params = {}) {
+async function fetchPaginated(resourcePath, params = {}, options = {}) {
   const items = [];
   let pagina = 1;
+  const maxPages = Number(options.maxPages || 0);
 
   while (true) {
     const data = await blingGet(resourcePath, { ...params, pagina, limite: 100 });
     const pageItems = data?.data || [];
     items.push(...pageItems);
 
+    if (maxPages > 0 && pagina >= maxPages) break;
     if (pageItems.length < 100) break;
     pagina++;
     await sleep(REQUEST_DELAY_MS);

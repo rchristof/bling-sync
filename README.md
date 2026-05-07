@@ -75,6 +75,12 @@ Backfill escolhendo entidades:
 docker compose run --rm bling-sync node server.js backfill --entities=produtos,pedidos,contatos
 ```
 
+Verificacao manual com poucas paginas, sem alterar o comportamento automatico:
+
+```bash
+docker compose run --rm bling-sync node server.js backfill --entities=produtos --desde=2026-05-01 --max-pages=1
+```
+
 Reconciliacao manual:
 
 ```bash

@@ -30,6 +30,6 @@ module.exports = {
     notas_fiscais: process.env.BLING_NOTAS_FISCAIS_PATH || '/nfe',
     contas_receber: process.env.BLING_CONTAS_RECEBER_PATH || '/contas/receber',
     contas_pagar: process.env.BLING_CONTAS_PAGAR_PATH || '/contas/pagar',
-    estoque_movimentos: process.env.BLING_ESTOQUE_MOVIMENTOS_PATH || '/estoques/movimentacoes',
+    estoque_movimentos: process.env.BLING_ESTOQUE_MOVIMENTOS_PATH || '/estoques/saldos',
   },
 };
