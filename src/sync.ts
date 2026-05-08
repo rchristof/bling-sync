@@ -154,7 +154,7 @@ async function backfillDetailEntity(entity, resourcePath, upsert, options: any =
   await streamPages(resourcePath, params, { ...options, startPage }, async (items, pagina) => {
     for (const item of items) {
       const detail = await blingGet(`${resourcePath}/${item.id}`);
-      await upsert(detail.data || detail);
+      await upsert({ ...item, ...(detail.data || detail) });
       count++;
 
       if (count % 25 === 0) {
@@ -191,11 +191,11 @@ async function runBackfill(options: any = {}) {
   for (const entity of entities) {
     try {
       if (entity === 'pedidos') await backfillDetailEntity('pedidos', endpoints.pedidos, upsertPedido, options);
-      else if (entity === 'produtos') await backfillListEntity(entity, endpoints.produtos, upsertProduto, options);
+      else if (entity === 'produtos') await backfillDetailEntity(entity, endpoints.produtos, upsertProduto, options);
       else if (entity === 'contatos') await backfillListEntity(entity, endpoints.contatos, upsertContato, options);
       else if (entity === 'notas_fiscais') await backfillDetailEntity(entity, endpoints.notas_fiscais, upsertNotaFiscal, options);
-      else if (entity === 'contas_receber') await backfillListEntity(entity, endpoints.contas_receber, item => upsertConta('contas_receber', item), options);
-      else if (entity === 'contas_pagar') await backfillListEntity(entity, endpoints.contas_pagar, item => upsertConta('contas_pagar', item), options);
+      else if (entity === 'contas_receber') await backfillDetailEntity(entity, endpoints.contas_receber, item => upsertConta('contas_receber', item), options);
+      else if (entity === 'contas_pagar') await backfillDetailEntity(entity, endpoints.contas_pagar, item => upsertConta('contas_pagar', item), options);
       else { log('warn', 'unknown backfill entity ignored', { entity }); continue; }
       succeeded.push(entity);
     } catch (err) {

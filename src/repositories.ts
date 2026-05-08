@@ -248,12 +248,12 @@ async function upsertConta(table, conta, client = pool) {
 
   await client.query(
     `INSERT INTO ${table} (
-       id, contato_id, data_emissao, data_vencimento, data_pagamento, valor, saldo, situacao, raw, synced_at
+       id, contato_id, data_emissao, data_vencimento, valor, saldo, situacao, raw, synced_at
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
      ON CONFLICT (id) DO UPDATE SET
        contato_id = EXCLUDED.contato_id, data_emissao = EXCLUDED.data_emissao,
-       data_vencimento = EXCLUDED.data_vencimento, data_pagamento = EXCLUDED.data_pagamento,
+       data_vencimento = EXCLUDED.data_vencimento,
        valor = EXCLUDED.valor, saldo = EXCLUDED.saldo, situacao = EXCLUDED.situacao,
        raw = EXCLUDED.raw, synced_at = NOW(), deleted_at = NULL`,
     [
@@ -261,7 +261,6 @@ async function upsertConta(table, conta, client = pool) {
       toId(conta.contato?.id),
       toDate(conta.dataEmissao || conta.data),
       toDate(conta.dataVencimento || conta.vencimento),
-      toDate(conta.dataPagamento || conta.pagamento),
       toNumber(conta.valor),
       toNumber(conta.saldo),
       blankToNull(conta.situacao?.valor || conta.situacao?.id || conta.situacao),
