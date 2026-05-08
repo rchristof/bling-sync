@@ -2,6 +2,7 @@ const { endpoints, RECONCILIATION_WINDOW_DAYS, REQUEST_DELAY_MS } = require('./c
 const { blingGet } = require('./bling');
 const { pool } = require('./db');
 const { log } = require('./logger');
+const { loadToken } = require('./oauth');
 const {
   syncState,
   upsertConta,
@@ -13,6 +14,7 @@ const {
 
 const DEFAULT_ENTITIES = 'produtos,pedidos,contatos,notas_fiscais,contas_receber,contas_pagar';
 const PAGE_SIZE = 100;
+let initialBackfillPromise = null;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -20,7 +22,7 @@ function sleep(ms) {
 
 const DATE_FILTERS = {
   business: {
-    produtos: ['dataInclusaoInicial', 'dataInclusaoFinal', 'datetime'],
+    produtos: ['dataInclusaoInicial', 'dataInclusaoFinal', 'datetime', { criterio: 5, tipo: 'T' }],
     pedidos: ['dataInicial', 'dataFinal', 'date'],
     contatos: ['dataInclusaoInicial', 'dataInclusaoFinal', 'datetime'],
     notas_fiscais: ['dataEmissaoInicial', 'dataEmissaoFinal', 'datetime'],
@@ -28,7 +30,7 @@ const DATE_FILTERS = {
     contas_pagar: ['dataEmissaoInicial', 'dataEmissaoFinal', 'date'],
   },
   updated: {
-    produtos: ['dataAlteracaoInicial', 'dataAlteracaoFinal', 'datetime'],
+    produtos: ['dataAlteracaoInicial', 'dataAlteracaoFinal', 'datetime', { criterio: 5, tipo: 'T' }],
     pedidos: ['dataAlteracaoInicial', 'dataAlteracaoFinal', 'datetime'],
     contatos: ['dataAlteracaoInicial', 'dataAlteracaoFinal', 'datetime'],
     notas_fiscais: ['dataEmissaoInicial', 'dataEmissaoFinal', 'datetime'],
@@ -240,6 +242,12 @@ async function ensureInitialBackfill() {
     return;
   }
 
+  const token = await loadToken();
+  if (!token?.access_token && !token?.refresh_token) {
+    log('info', 'initial backfill waiting for oauth token');
+    return;
+  }
+
   const desde = process.env.BACKFILL_START_DATE;
   log('info', 'initial backfill starting', { desde, resuming: Boolean(rows[0]) });
 
@@ -264,4 +272,19 @@ async function ensureInitialBackfill() {
   }
 }
 
-module.exports = { runBackfill, runReconciliation, ensureInitialBackfill };
+function startInitialBackfill(reason = 'startup') {
+  if (initialBackfillPromise) {
+    log('info', 'initial backfill already running', { reason });
+    return initialBackfillPromise;
+  }
+
+  initialBackfillPromise = ensureInitialBackfill()
+    .catch(err => log('error', 'initial backfill failed', { reason, error: err.message }))
+    .finally(() => {
+      initialBackfillPromise = null;
+    });
+
+  return initialBackfillPromise;
+}
+
+module.exports = { runBackfill, runReconciliation, ensureInitialBackfill, startInitialBackfill };

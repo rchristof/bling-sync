@@ -4,7 +4,7 @@ const { ensureSchema, pool } = require('./db');
 const { createApp, listen } = require('./app');
 const { log } = require('./logger');
 const { seedTokenFromFileIfNeeded } = require('./oauth');
-const { ensureInitialBackfill, runBackfill, runReconciliation } = require('./sync');
+const { runBackfill, runReconciliation, startInitialBackfill } = require('./sync');
 const { startDailyReconciliation, startWorker } = require('./worker');
 
 function parseCliOptions(args) {
@@ -40,7 +40,7 @@ async function startServer() {
 
   if (process.env.RUN_WORKER !== 'false') startWorker();
   if (process.env.RUN_DAILY_RECONCILIATION !== 'false') startDailyReconciliation();
-  ensureInitialBackfill().catch(err => log('error', 'initial backfill failed', { error: err.message }));
+  startInitialBackfill('startup');
 }
 
 async function main() {

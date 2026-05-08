@@ -4,6 +4,7 @@ const { APP_NAME, BLING_CLIENT_ID, BLING_OAUTH_BASE_URL, PORT } = require('./con
 const { pool } = require('./db');
 const { exchangeAuthorizationCode, loadToken } = require('./oauth');
 const { log } = require('./logger');
+const { startInitialBackfill } = require('./sync');
 const { enqueueWebhook, verifyBlingSignature } = require('./webhooks');
 
 function createApp() {
@@ -88,7 +89,8 @@ function createApp() {
       }
 
       await exchangeAuthorizationCode(req.query.code);
-      res.send('Bling authorization finished. Token saved.');
+      startInitialBackfill('oauth_callback');
+      res.send('Bling authorization finished. Token saved. Initial backfill started.');
     } catch (err) {
       log('error', 'oauth callback failed', { error: err.message });
       res.status(500).send(err.message);
