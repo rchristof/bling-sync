@@ -91,7 +91,7 @@ O worker pegara no proximo ciclo.
 
 ## Backfill inicial
 
-Depois que o OAuth for concluido em `/auth`, o callback salva o token e dispara o backfill inicial automaticamente em segundo plano, usando `BACKFILL_START_DATE` como data de partida. Se o servico subir antes de existir token, ele apenas aguarda a autorizacao. O job eh idempotente: o estado fica registrado em `sync_state.entity = 'initial_backfill'` e so volta a rodar se nao tiver sido marcado como `completed`. Cada entidade tambem tem checkpoint por pagina em `sync_state` — se o processo for interrompido (rate limit, queda), o reinicio retoma da ultima pagina concluida.
+Depois que o OAuth for concluido em `/auth`, o callback salva o token e dispara o backfill inicial automaticamente em segundo plano. Se `BACKFILL_START_DATE` estiver vazio, o backfill inicial eh completo; se estiver preenchido, usa essa data como ponto de partida. Se o servico subir antes de existir token, ele apenas aguarda a autorizacao. O job eh idempotente por data de partida: o estado fica registrado em `sync_state.entity = 'initial_backfill'` e so pula a execucao se ja estiver marcado como `completed` para o mesmo valor de `BACKFILL_START_DATE`. Cada entidade tambem tem checkpoint em `sync_state`: listagens retomam da ultima pagina concluida; entidades que buscam detalhe por ID tambem salvam a pagina atual e o proximo item pendente, entao uma interrupcao por rate limit ou queda retoma dentro da propria pagina.
 
 Se quiser disparar manualmente (por exemplo para uma janela diferente):
 
