@@ -7,6 +7,7 @@ import {
   syncState,
   upsertConta,
   upsertContato,
+  upsertLoja,
   upsertNotaFiscal,
   upsertPedido,
   upsertProduto,
@@ -259,6 +260,7 @@ export async function runBackfill(options: any = {}): Promise<{ succeeded: strin
       else if (entity === 'notas_fiscais') await backfillDetailEntity(entity, endpoints.notas_fiscais, upsertNotaFiscal, options);
       else if (entity === 'contas_receber') await backfillDetailEntity(entity, endpoints.contas_receber, item => upsertConta('contas_receber', item), options);
       else if (entity === 'contas_pagar') await backfillDetailEntity(entity, endpoints.contas_pagar, item => upsertConta('contas_pagar', item), options);
+      else if (entity === 'lojas') await backfillListEntity(entity, endpoints.lojas, upsertLoja, {});
       else { log('warn', 'unknown backfill entity ignored', { entity }); continue; }
       succeeded.push(entity);
     } catch (err) {

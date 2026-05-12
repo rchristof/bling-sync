@@ -46,6 +46,25 @@ function toJson(value: unknown): string {
   return JSON.stringify(value || {});
 }
 
+export async function upsertLoja(loja: any, client: DbClient = pool): Promise<void> {
+  if (!loja?.id) return;
+  await client.query(
+    `INSERT INTO lojas (id, nome, situacao, raw, synced_at)
+     VALUES ($1, $2, $3, $4, NOW())
+     ON CONFLICT (id) DO UPDATE SET
+       nome      = EXCLUDED.nome,
+       situacao  = EXCLUDED.situacao,
+       raw       = EXCLUDED.raw,
+       synced_at = NOW()`,
+    [
+      loja.id,
+      blankToNull(loja.nome),
+      blankToNull(loja.situacao?.valor || loja.situacao),
+      toJson(loja),
+    ]
+  );
+}
+
 export async function upsertContato(contato: any, client: DbClient = pool): Promise<void> {
   if (!contato?.id) return;
 

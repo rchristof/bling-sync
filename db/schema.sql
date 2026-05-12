@@ -46,6 +46,14 @@ CREATE TABLE IF NOT EXISTS sync_state (
   updated_at     TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS lojas (
+  id        BIGINT PRIMARY KEY,
+  nome      TEXT,
+  situacao  TEXT,
+  raw       JSONB,
+  synced_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS contatos (
   id               BIGINT PRIMARY KEY,
   nome             TEXT,
