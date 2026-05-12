@@ -1,4 +1,4 @@
-import { endpoints, RECONCILIATION_WINDOW_DAYS, REQUEST_DELAY_MS } from './config';
+import { BACKFILL_ENTITIES, BACKFILL_START_DATE, endpoints, RECONCILIATION_ENTITIES, RECONCILIATION_WINDOW_DAYS, REQUEST_DELAY_MS } from './config';
 import { blingGet } from './bling';
 import { pool } from './db';
 import { log } from './logger';
@@ -12,7 +12,6 @@ import {
   upsertProduto,
 } from './repositories';
 
-const DEFAULT_ENTITIES = 'produtos,pedidos,contatos,notas_fiscais,contas_receber,contas_pagar';
 const PAGE_SIZE = 100;
 let initialBackfillPromise: Promise<void> | null = null;
 
@@ -236,7 +235,7 @@ async function backfillDetailEntity(entity: string, resourcePath: string, upsert
 
 export async function runBackfill(options: any = {}): Promise<{ succeeded: string[]; failed: string[] }> {
   options = normalizedBackfillOptions(options);
-  const entities: string[] = (options.entities || process.env.BACKFILL_ENTITIES || DEFAULT_ENTITIES)
+  const entities: string[] = (options.entities || BACKFILL_ENTITIES)
     .split(',')
     .map((entity: string) => entity.trim())
     .filter(Boolean);
@@ -291,14 +290,14 @@ export async function runReconciliation(): Promise<void> {
   await runBackfill({
     desde: since,
     filterMode: 'updated',
-    entities: process.env.RECONCILIATION_ENTITIES || DEFAULT_ENTITIES,
+    entities: RECONCILIATION_ENTITIES,
   });
 
   await syncState('daily_reconciliation', { since });
 }
 
 export async function ensureInitialBackfill(): Promise<void> {
-  const desde = optionalDateValue(process.env.BACKFILL_START_DATE);
+  const desde = BACKFILL_START_DATE;
   const desiredDesde = desde || null;
   const { rows } = await pool.query(
     "SELECT metadata FROM sync_state WHERE entity = 'initial_backfill'"

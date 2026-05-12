@@ -1,11 +1,11 @@
 import fs from 'fs';
 import { Pool } from 'pg';
-import { DATABASE_URL, SCHEMA_FILE } from './config';
+import { DATABASE_URL, DB_POOL_MAX, SCHEMA_FILE } from './config';
 import { log } from './logger';
 
 export const pool = new Pool({
   connectionString: DATABASE_URL,
-  max: Number(process.env.DB_POOL_MAX || 10),
+  max: DB_POOL_MAX,
 });
 
 export async function ensureSchema(): Promise<void> {

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { BLING_API_BASE_URL, REQUEST_DELAY_MS } from './config';
+import { BLING_API_BASE_URL, BLING_REQUEST_TIMEOUT_MS, REQUEST_DELAY_MS } from './config';
 import { getValidAccessToken, refreshAccessToken } from './oauth';
 import { log } from './logger';
 
@@ -7,20 +7,13 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function apiUrl(resourcePath: string): string {
-  const base = BLING_API_BASE_URL.replace(/\/$/, '');
-  const resource = resourcePath.replace(/^\//, '');
-  return `${base}/${resource}`;
-}
-
-const BLING_REQUEST_TIMEOUT_MS = Number(process.env.BLING_REQUEST_TIMEOUT_MS || 30000);
 
 export async function blingGet(resourcePath: string, params: Record<string, unknown> = {}): Promise<any> {
   let accessToken = await getValidAccessToken();
 
   for (let attempt = 1; attempt <= 4; attempt++) {
     try {
-      const { data } = await axios.get(apiUrl(resourcePath), {
+      const { data } = await axios.get(`${BLING_API_BASE_URL}/${resourcePath.replace(/^\//, '')}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'enable-jwt': '1',

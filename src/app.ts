@@ -1,7 +1,7 @@
 import type { Application, NextFunction, Request, Response } from 'express';
 import crypto from 'crypto';
 import express from 'express';
-import { APP_NAME, BLING_CLIENT_ID, BLING_OAUTH_BASE_URL, PORT } from './config';
+import { APP_NAME, BLING_CLIENT_ID, BLING_OAUTH_BASE_URL, JSON_BODY_LIMIT, PORT } from './config';
 import { pool } from './db';
 import { exchangeAuthorizationCode, loadToken } from './oauth';
 import { log } from './logger';
@@ -22,7 +22,7 @@ export function createApp(): Application {
   const app: Application = express();
 
   app.use(express.json({
-    limit: process.env.JSON_BODY_LIMIT || '5mb',
+    limit: JSON_BODY_LIMIT,
     verify: (req: Request, _res: Response, buf: Buffer) => {
       req.rawBody = buf.toString('utf8');
     },

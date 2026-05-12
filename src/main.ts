@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { RUN_DAILY_RECONCILIATION, RUN_WORKER } from './config';
 import { ensureSchema, pool } from './db';
 import { createApp, listen } from './app';
 import { log } from './logger';
@@ -37,8 +38,8 @@ async function startServer(): Promise<void> {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 
-  if (process.env.RUN_WORKER !== 'false') startWorker();
-  if (process.env.RUN_DAILY_RECONCILIATION !== 'false') startDailyReconciliation();
+  if (RUN_WORKER) startWorker();
+  if (RUN_DAILY_RECONCILIATION) startDailyReconciliation();
   startInitialBackfill('startup');
 }
 
