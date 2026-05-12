@@ -17,7 +17,7 @@ module.exports = {
   PUBLIC_BASE_URL,
   BLING_CLIENT_ID: requiredEnv('BLING_CLIENT_ID'),
   BLING_CLIENT_SECRET: requiredEnv('BLING_CLIENT_SECRET'),
-  BLING_REDIRECT_URI: process.env.BLING_REDIRECT_URI || `${PUBLIC_BASE_URL}/callback`,
+  BLING_REDIRECT_URI: process.env.BLING_REDIRECT_URI || `${PUBLIC_BASE_URL}/auth/callback`,
   BLING_API_BASE_URL: process.env.BLING_API_BASE_URL || 'https://api.bling.com.br/Api/v3',
   BLING_OAUTH_BASE_URL: process.env.BLING_OAUTH_BASE_URL || 'https://www.bling.com.br/Api/v3/oauth',
   REQUEST_DELAY_MS: Number(process.env.BLING_REQUEST_DELAY_MS || 350),

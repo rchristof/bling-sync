@@ -9,7 +9,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-blingdb}
       TZ: ${TZ:-America/Sao_Paulo}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_BIND:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -33,7 +33,7 @@ services:
       TZ: ${TZ:-America/Sao_Paulo}
       DATABASE_URL: postgres://${POSTGRES_USER:-bling}:${POSTGRES_PASSWORD:-blingpass}@postgres:5432/${POSTGRES_DB:-blingdb}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3002}
-      BLING_REDIRECT_URI: ${BLING_REDIRECT_URI:-http://localhost:3002/callback}
+      BLING_REDIRECT_URI: ${BLING_REDIRECT_URI:-http://localhost:3002/auth/callback}
       RUN_WORKER: ${RUN_WORKER:-true}
       RUN_DAILY_RECONCILIATION: ${RUN_DAILY_RECONCILIATION:-true}
       LOG_FILE: ${LOG_FILE:-/app/logs/bling-sync.log}
@@ -41,7 +41,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "${BLING_SYNC_PORT:-3002}:3000"
+      - "${BLING_SYNC_BIND:-127.0.0.1}:${BLING_SYNC_PORT:-3002}:3000"
     volumes:
       - bling_sync_logs:/app/logs
     healthcheck:
@@ -73,7 +73,7 @@ services:
       MB_DB_PASS: ${POSTGRES_PASSWORD:-blingpass}
       MB_PLUGINS_DIR: /plugins
     ports:
-      - "${METABASE_PORT:-3001}:3000"
+      - "${METABASE_BIND:-127.0.0.1}:${METABASE_PORT:-3001}:3000"
     volumes:
       - metabase_plugins:/plugins
     healthcheck:

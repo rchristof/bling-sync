@@ -18,7 +18,7 @@ docker compose up -d --build
 Configure no Bling o redirect URI:
 
 ```text
-http://localhost:3002/callback
+http://localhost:3002/auth/callback
 ```
 
 Autorize o aplicativo em:
@@ -26,6 +26,108 @@ Autorize o aplicativo em:
 ```text
 http://localhost:3002/auth
 ```
+
+## Deploy em VM
+
+Na VM, use Docker Compose e mantenha os segredos apenas no `.env` da propria VM.
+
+```bash
+git clone https://github.com/rchristof/bling-test.git /opt/bling-sync
+cd /opt/bling-sync
+cp .env.example .env
+```
+
+Edite o `.env` antes de subir:
+
+```text
+BLING_CLIENT_ID=...
+BLING_CLIENT_SECRET=...
+PUBLIC_BASE_URL=https://seu-dominio
+BLING_REDIRECT_URI=https://seu-dominio/auth/callback
+POSTGRES_PASSWORD=uma_senha_forte
+POSTGRES_BIND=127.0.0.1
+BLING_SYNC_BIND=127.0.0.1
+METABASE_BIND=127.0.0.1
+BACKFILL_START_DATE=
+```
+
+No desenho recomendado, Docker publica tudo apenas em `127.0.0.1` e o Caddy
+decide o que fica acessivel. Para expor o Metabase, o OAuth e o webhook do
+backend no mesmo dominio:
+
+```caddyfile
+seu-dominio {
+  @bling_oauth path /auth /auth/callback
+  handle @bling_oauth {
+    reverse_proxy 127.0.0.1:3002
+  }
+
+  @bling_webhook {
+    method POST
+    path /webhooks/bling
+  }
+  handle @bling_webhook {
+    reverse_proxy 127.0.0.1:3002
+  }
+
+  handle {
+    reverse_proxy 127.0.0.1:3001
+  }
+}
+```
+
+Se preferir dominios separados:
+
+```caddyfile
+metabase.seu-dominio {
+  reverse_proxy 127.0.0.1:3001
+}
+
+bling.seu-dominio {
+  @bling_oauth path /auth /auth/callback
+  handle @bling_oauth {
+    reverse_proxy 127.0.0.1:3002
+  }
+
+  @bling_webhook {
+    method POST
+    path /webhooks/bling
+  }
+  handle @bling_webhook {
+    reverse_proxy 127.0.0.1:3002
+  }
+
+  respond 404
+}
+```
+
+Com Cloudflare Tunnel, aponte o tunnel para o Caddy. Nao precisa abrir as portas
+Docker publicamente. Se quiser acessar o Metabase sem Caddy, use tunel SSH:
+
+```bash
+ssh -L 3001:localhost:3001 usuario@IP_DA_VM
+```
+
+Suba e valide:
+
+```bash
+docker compose up -d --build
+docker compose ps
+curl http://localhost:3002/health
+curl http://localhost:3002/ready
+curl http://localhost:3002/auth/status
+```
+
+Depois, cadastre no Bling:
+
+```text
+Redirect URI: https://seu-dominio/auth/callback
+Webhook:      https://seu-dominio/webhooks/bling
+```
+
+Abra `/auth` uma vez para concluir o OAuth. Apos o callback, o token fica salvo
+em Postgres e o backfill inicial comeca automaticamente. Se `BACKFILL_START_DATE`
+estiver vazio, esse backfill inicial sera completo.
 
 ## Healthchecks
 
@@ -36,6 +138,8 @@ docker compose ps
 ```
 
 ## Webhook
+
+No deploy restrito, exponha somente `POST /webhooks/bling` pelo Caddy.
 
 Configure o webhook do Bling apontando para:
 
@@ -55,7 +159,7 @@ Voce nao precisa esperar um evento real do Bling para verificar o endpoint. Tres
 
 **1. Disparar evento real no Bling**
 
-A VM precisa estar publicamente acessivel (ou exposta via tunel — `ngrok http 3002`, `cloudflared tunnel`, etc). Cadastre o webhook no Bling, edite/crie um pedido ou produto e veja o evento chegar nos logs e em `bling_webhook_events`.
+A rota `/webhooks/bling` precisa estar publicamente acessivel (ou exposta via tunel — `ngrok http 3002`, `cloudflared tunnel`, etc). Cadastre o webhook no Bling, edite/crie um pedido ou produto e veja o evento chegar nos logs e em `bling_webhook_events`.
 
 **2. Simular um POST com assinatura valida (curl)**
 
