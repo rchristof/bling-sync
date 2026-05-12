@@ -1,26 +1,26 @@
-const { endpoints, RECONCILIATION_WINDOW_DAYS, REQUEST_DELAY_MS } = require('./config');
-const { blingGet } = require('./bling');
-const { pool } = require('./db');
-const { log } = require('./logger');
-const { loadToken } = require('./oauth');
-const {
+import { endpoints, RECONCILIATION_WINDOW_DAYS, REQUEST_DELAY_MS } from './config';
+import { blingGet } from './bling';
+import { pool } from './db';
+import { log } from './logger';
+import { loadToken } from './oauth';
+import {
   syncState,
   upsertConta,
   upsertContato,
   upsertNotaFiscal,
   upsertPedido,
   upsertProduto,
-} = require('./repositories');
+} from './repositories';
 
 const DEFAULT_ENTITIES = 'produtos,pedidos,contatos,notas_fiscais,contas_receber,contas_pagar';
 const PAGE_SIZE = 100;
-let initialBackfillPromise = null;
+let initialBackfillPromise: Promise<void> | null = null;
 
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-const DATE_FILTERS = {
+const DATE_FILTERS: Record<string, Record<string, any>> = {
   business: {
     produtos: ['dataInclusaoInicial', 'dataInclusaoFinal', 'datetime', { criterio: 5, tipo: 'T' }],
     pedidos: ['dataInicial', 'dataFinal', 'date'],
@@ -39,11 +39,11 @@ const DATE_FILTERS = {
   },
 };
 
-function dateOnly(value) {
+function dateOnly(value: unknown): string {
   return String(value).slice(0, 10);
 }
 
-function dateTime(value, endOfDay = false) {
+function dateTime(value: unknown, endOfDay = false): string {
   const asString = String(value);
   if (asString.includes('T') || asString.includes(' ')) {
     return asString.replace('T', ' ').replace(/\.\d{3}Z$/, '');
@@ -52,18 +52,18 @@ function dateTime(value, endOfDay = false) {
   return `${dateOnly(value)} ${endOfDay ? '23:59:59' : '00:00:00'}`;
 }
 
-function formattedDate(value, format, endOfDay = false) {
+function formattedDate(value: unknown, format: string, endOfDay = false): string {
   if (format === 'datetime') return dateTime(value, endOfDay);
   return dateOnly(value);
 }
 
-function optionalDateValue(value) {
+function optionalDateValue(value: unknown): string | undefined {
   if (value === undefined || value === null || typeof value === 'boolean') return undefined;
   const normalized = String(value).trim();
   return normalized || undefined;
 }
 
-function normalizedBackfillOptions(options: any = {}) {
+function normalizedBackfillOptions(options: any = {}): any {
   return {
     ...options,
     desde: optionalDateValue(options.desde),
@@ -71,13 +71,13 @@ function normalizedBackfillOptions(options: any = {}) {
   };
 }
 
-function buildDateParams(entity, options: any = {}) {
+function buildDateParams(entity: string, options: any = {}): Record<string, string> {
   const mode = options.filterMode === 'updated' ? 'updated' : 'business';
   const config = DATE_FILTERS[mode][entity];
   if (!config) return {};
 
   const [startParam, endParam, format, extraParams = {}] = config;
-  const params = { ...extraParams };
+  const params: Record<string, string> = { ...extraParams };
 
   if (options.desde) params[startParam] = formattedDate(options.desde, format);
   if (options.ate) params[endParam] = formattedDate(options.ate, format, true);
@@ -85,16 +85,16 @@ function buildDateParams(entity, options: any = {}) {
   return params;
 }
 
-function maxPagesOption(options: any = {}) {
+function maxPagesOption(options: any = {}): number | undefined {
   const maxPages = Number(options.maxPages || 0);
   return Number.isInteger(maxPages) && maxPages > 0 ? maxPages : undefined;
 }
 
-function checkpointPageItems(meta) {
+function checkpointPageItems(meta: any): any[] | null {
   return Array.isArray(meta?.pageItems) ? meta.pageItems : null;
 }
 
-function entityFingerprint(options: any = {}) {
+function entityFingerprint(options: any = {}): Record<string, string | null> {
   return {
     desde: optionalDateValue(options.desde) || null,
     ate: optionalDateValue(options.ate) || null,
@@ -102,7 +102,7 @@ function entityFingerprint(options: any = {}) {
   };
 }
 
-async function loadCheckpoint(entity, fingerprint) {
+async function loadCheckpoint(entity: string, fingerprint: Record<string, string | null>): Promise<any | null> {
   const { rows } = await pool.query('SELECT metadata FROM sync_state WHERE entity = $1', [entity]);
   const meta = rows[0]?.metadata;
   if (!meta || meta.completed) return null;
@@ -129,11 +129,11 @@ async function loadCheckpoint(entity, fingerprint) {
   return { lastPage, count: Number(meta.count || 0) };
 }
 
-async function saveCheckpoint(entity, fingerprint, lastPage, count, completed) {
+async function saveCheckpoint(entity: string, fingerprint: Record<string, string | null>, lastPage: number, count: number, completed: boolean): Promise<void> {
   await syncState(entity, { ...fingerprint, lastPage, count, completed });
 }
 
-async function saveDetailCheckpoint(entity, fingerprint, page, nextItemIndex, pageItems, count) {
+async function saveDetailCheckpoint(entity: string, fingerprint: Record<string, string | null>, page: number, nextItemIndex: number, pageItems: any[], count: number): Promise<void> {
   await syncState(entity, {
     ...fingerprint,
     lastPage: page - 1,
@@ -145,14 +145,14 @@ async function saveDetailCheckpoint(entity, fingerprint, page, nextItemIndex, pa
   });
 }
 
-async function streamPages(resourcePath, params, options, onPage) {
+async function streamPages(resourcePath: string, params: Record<string, unknown>, options: any, onPage: (items: any[], pagina: number) => Promise<void>): Promise<void> {
   const maxPages = maxPagesOption(options);
   const startPage = Number(options.startPage || 1);
   const resumePageItems = checkpointPageItems(options);
   let pagina = startPage;
 
   while (true) {
-    let items;
+    let items: any[];
     if (resumePageItems && pagina === startPage) {
       items = resumePageItems;
     } else {
@@ -168,7 +168,7 @@ async function streamPages(resourcePath, params, options, onPage) {
   }
 }
 
-async function backfillListEntity(entity, resourcePath, upsert, options: any = {}) {
+async function backfillListEntity(entity: string, resourcePath: string, upsert: (item: any) => Promise<void>, options: any = {}): Promise<void> {
   const params = buildDateParams(entity, options);
   const fingerprint = entityFingerprint(options);
   const checkpoint = await loadCheckpoint(entity, fingerprint);
@@ -191,7 +191,7 @@ async function backfillListEntity(entity, resourcePath, upsert, options: any = {
   log('info', `${entity} synced`, { count, lastPage });
 }
 
-async function backfillDetailEntity(entity, resourcePath, upsert, options: any = {}) {
+async function backfillDetailEntity(entity: string, resourcePath: string, upsert: (item: any) => Promise<void>, options: any = {}): Promise<void> {
   const params = buildDateParams(entity, options);
   const fingerprint = entityFingerprint(options);
   const checkpoint = await loadCheckpoint(entity, fingerprint);
@@ -234,11 +234,11 @@ async function backfillDetailEntity(entity, resourcePath, upsert, options: any =
   log('info', `${entity} synced`, { count, lastPage });
 }
 
-async function runBackfill(options: any = {}) {
+export async function runBackfill(options: any = {}): Promise<{ succeeded: string[]; failed: string[] }> {
   options = normalizedBackfillOptions(options);
-  const entities = (options.entities || process.env.BACKFILL_ENTITIES || DEFAULT_ENTITIES)
+  const entities: string[] = (options.entities || process.env.BACKFILL_ENTITIES || DEFAULT_ENTITIES)
     .split(',')
-    .map(entity => entity.trim())
+    .map((entity: string) => entity.trim())
     .filter(Boolean);
 
   log('info', 'backfill started', {
@@ -249,8 +249,8 @@ async function runBackfill(options: any = {}) {
     maxPages: maxPagesOption(options),
   });
 
-  const failed = [];
-  const succeeded = [];
+  const failed: string[] = [];
+  const succeeded: string[] = [];
 
   for (const entity of entities) {
     try {
@@ -263,7 +263,7 @@ async function runBackfill(options: any = {}) {
       else { log('warn', 'unknown backfill entity ignored', { entity }); continue; }
       succeeded.push(entity);
     } catch (err) {
-      log('error', `${entity} backfill failed`, { entity, error: err.message });
+      log('error', `${entity} backfill failed`, { entity, error: (err as Error).message });
       failed.push(entity);
     }
   }
@@ -277,7 +277,7 @@ async function runBackfill(options: any = {}) {
   return { succeeded, failed };
 }
 
-async function runReconciliation() {
+export async function runReconciliation(): Promise<void> {
   const fallbackMs = RECONCILIATION_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   const { rows } = await pool.query(
     "SELECT last_synced_at FROM sync_state WHERE entity = 'daily_reconciliation'"
@@ -297,7 +297,7 @@ async function runReconciliation() {
   await syncState('daily_reconciliation', { since });
 }
 
-async function ensureInitialBackfill() {
+export async function ensureInitialBackfill(): Promise<void> {
   const desde = optionalDateValue(process.env.BACKFILL_START_DATE);
   const desiredDesde = desde || null;
   const { rows } = await pool.query(
@@ -345,19 +345,17 @@ async function ensureInitialBackfill() {
   }
 }
 
-function startInitialBackfill(reason = 'startup') {
+export function startInitialBackfill(reason = 'startup'): Promise<void> {
   if (initialBackfillPromise) {
     log('info', 'initial backfill already running', { reason });
     return initialBackfillPromise;
   }
 
   initialBackfillPromise = ensureInitialBackfill()
-    .catch(err => log('error', 'initial backfill failed', { reason, error: err.message }))
+    .catch(err => log('error', 'initial backfill failed', { reason, error: (err as Error).message }))
     .finally(() => {
       initialBackfillPromise = null;
     });
 
   return initialBackfillPromise;
 }
-
-module.exports = { runBackfill, runReconciliation, ensureInitialBackfill, startInitialBackfill };

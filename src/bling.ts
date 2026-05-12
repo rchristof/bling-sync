@@ -1,13 +1,13 @@
-const axios = require('axios');
-const { BLING_API_BASE_URL, REQUEST_DELAY_MS } = require('./config');
-const { getValidAccessToken, refreshAccessToken } = require('./oauth');
-const { log } = require('./logger');
+import axios from 'axios';
+import { BLING_API_BASE_URL, REQUEST_DELAY_MS } from './config';
+import { getValidAccessToken, refreshAccessToken } from './oauth';
+import { log } from './logger';
 
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function apiUrl(resourcePath) {
+function apiUrl(resourcePath: string): string {
   const base = BLING_API_BASE_URL.replace(/\/$/, '');
   const resource = resourcePath.replace(/^\//, '');
   return `${base}/${resource}`;
@@ -15,7 +15,7 @@ function apiUrl(resourcePath) {
 
 const BLING_REQUEST_TIMEOUT_MS = Number(process.env.BLING_REQUEST_TIMEOUT_MS || 30000);
 
-async function blingGet(resourcePath, params = {}) {
+export async function blingGet(resourcePath: string, params: Record<string, unknown> = {}): Promise<any> {
   let accessToken = await getValidAccessToken();
 
   for (let attempt = 1; attempt <= 4; attempt++) {
@@ -29,7 +29,7 @@ async function blingGet(resourcePath, params = {}) {
         timeout: BLING_REQUEST_TIMEOUT_MS,
       });
       return data;
-    } catch (err) {
+    } catch (err: any) {
       if (err.response?.status === 401) {
         log('warn', 'bling token expired, refreshing', { resourcePath, attempt });
         await refreshAccessToken();
@@ -55,8 +55,8 @@ async function blingGet(resourcePath, params = {}) {
   throw new Error('Bling API request failed');
 }
 
-async function fetchPaginated(resourcePath, params = {}, options: any = {}) {
-  const items = [];
+export async function fetchPaginated(resourcePath: string, params: Record<string, unknown> = {}, options: any = {}): Promise<any[]> {
+  const items: any[] = [];
   let pagina = 1;
   const maxPages = Number(options.maxPages || 0);
 
@@ -73,5 +73,3 @@ async function fetchPaginated(resourcePath, params = {}, options: any = {}) {
 
   return items;
 }
-
-module.exports = { blingGet, fetchPaginated };

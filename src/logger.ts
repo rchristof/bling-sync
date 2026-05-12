@@ -1,8 +1,8 @@
-const fs = require('fs');
-const path = require('path');
-const { APP_NAME, LOG_FILE } = require('./config');
+import fs from 'fs';
+import path from 'path';
+import { APP_NAME, LOG_FILE } from './config';
 
-function log(level, message, meta = {}) {
+export function log(level: string, message: string, meta: Record<string, unknown> = {}): void {
   const line = JSON.stringify({
     ts: new Date().toISOString(),
     level,
@@ -23,5 +23,3 @@ function log(level, message, meta = {}) {
     }
   }
 }
-
-module.exports = { log };

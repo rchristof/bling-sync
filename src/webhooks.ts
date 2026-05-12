@@ -1,19 +1,19 @@
-const crypto = require('crypto');
-const { BLING_CLIENT_SECRET, endpoints, REQUEST_DELAY_MS, WEBHOOK_MAX_ATTEMPTS, WORKER_BATCH_SIZE } = require('./config');
-const { blingGet } = require('./bling');
-const { pool } = require('./db');
-const { log } = require('./logger');
-const { upsertNotaFiscal, upsertPedido, upsertProduto } = require('./repositories');
+import crypto from 'crypto';
+import { BLING_CLIENT_SECRET, endpoints, REQUEST_DELAY_MS, WEBHOOK_MAX_ATTEMPTS, WORKER_BATCH_SIZE } from './config';
+import { blingGet } from './bling';
+import { pool } from './db';
+import { log } from './logger';
+import { upsertNotaFiscal, upsertPedido, upsertProduto } from './repositories';
 
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function blankToNull(value) {
-  return value === undefined || value === '' ? null : value;
+function blankToNull(value: unknown): string | null {
+  return value === undefined || value === '' ? null : value as string;
 }
 
-function verifyBlingSignature(rawBody, signatureHeader) {
+export function verifyBlingSignature(rawBody: string | undefined, signatureHeader: string | undefined): boolean {
   if (!signatureHeader || typeof signatureHeader !== 'string') return false;
   if (!rawBody) return false;
 
@@ -28,16 +28,16 @@ function verifyBlingSignature(rawBody, signatureHeader) {
   return crypto.timingSafeEqual(expectedBuf, providedBuf);
 }
 
-function webhookEntityFromEvent(eventName) {
+export function webhookEntityFromEvent(eventName: unknown): { resource: string | null; action: string | null } {
   const [resource, action] = String(eventName || '').toLowerCase().split('.');
   return { resource: resource || null, action: action || null };
 }
 
-function webhookResourceId(payload) {
+function webhookResourceId(payload: any): string | null {
   return payload?.data?.id || null;
 }
 
-async function enqueueWebhook(payload, headers, rawBody) {
+export async function enqueueWebhook(payload: any, headers: Record<string, unknown>, rawBody: string): Promise<void> {
   const safePayload = payload || {};
   const { resource, action } = webhookEntityFromEvent(safePayload.event);
 
@@ -75,7 +75,7 @@ async function enqueueWebhook(payload, headers, rawBody) {
   });
 }
 
-async function processWebhookEvent(event) {
+async function processWebhookEvent(event: any): Promise<void> {
   const { resource, action } = webhookEntityFromEvent(event.event_name);
   const resourceId = webhookResourceId(event.payload);
 
@@ -152,7 +152,7 @@ async function processWebhookEvent(event) {
   });
 }
 
-async function claimWebhookEvents(limit = WORKER_BATCH_SIZE) {
+async function claimWebhookEvents(limit: number = WORKER_BATCH_SIZE): Promise<any[]> {
   const { rows } = await pool.query(
     `WITH next_events AS (
        SELECT id
@@ -177,7 +177,7 @@ async function claimWebhookEvents(limit = WORKER_BATCH_SIZE) {
   return rows;
 }
 
-async function processWebhookBatch() {
+export async function processWebhookBatch(): Promise<void> {
   const events = await claimWebhookEvents();
   if (events.length === 0) return;
 
@@ -190,7 +190,7 @@ async function processWebhookBatch() {
          WHERE id = $1`,
         [event.id]
       );
-    } catch (err) {
+    } catch (err: any) {
       const isFinalAttempt = event.attempts >= WEBHOOK_MAX_ATTEMPTS;
       log(isFinalAttempt ? 'error' : 'warn', 'webhook processing failed', {
         id: event.id,
@@ -211,10 +211,3 @@ async function processWebhookBatch() {
     await sleep(REQUEST_DELAY_MS);
   }
 }
-
-module.exports = {
-  webhookEntityFromEvent,
-  verifyBlingSignature,
-  enqueueWebhook,
-  processWebhookBatch,
-};

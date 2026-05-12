@@ -1,10 +1,13 @@
-const { pool } = require('./db');
+import type { Pool, PoolClient } from 'pg';
+import { pool } from './db';
 
-function blankToNull(value) {
-  return value === undefined || value === '' ? null : value;
+type DbClient = Pool | PoolClient;
+
+function blankToNull(value: unknown): string | null {
+  return value === undefined || value === '' ? null : value as string;
 }
 
-function toNumber(value) {
+function toNumber(value: unknown): number | null {
   const normalized = blankToNull(value);
   if (normalized === null) return null;
 
@@ -12,12 +15,12 @@ function toNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
-function toId(value) {
+function toId(value: unknown): number | null {
   const id = toNumber(value);
   return id && id > 0 ? id : null;
 }
 
-function toDate(value) {
+function toDate(value: unknown): string | null {
   const normalized = blankToNull(value);
   if (!normalized) return null;
 
@@ -39,11 +42,11 @@ function toDate(value) {
   return date;
 }
 
-function toJson(value) {
+function toJson(value: unknown): string {
   return JSON.stringify(value || {});
 }
 
-async function upsertContato(contato, client = pool) {
+export async function upsertContato(contato: any, client: DbClient = pool): Promise<void> {
   if (!contato?.id) return;
 
   await client.query(
@@ -69,7 +72,7 @@ async function upsertContato(contato, client = pool) {
   );
 }
 
-async function upsertProduto(produto, client = pool) {
+export async function upsertProduto(produto: any, client: DbClient = pool): Promise<void> {
   if (!produto?.id) return;
 
   await client.query(
@@ -122,7 +125,7 @@ async function upsertProduto(produto, client = pool) {
   );
 }
 
-async function upsertPedido(pedido, client = pool) {
+export async function upsertPedido(pedido: any, client: DbClient = pool): Promise<void> {
   if (!pedido?.id) return;
 
   await upsertContato(pedido.contato, client);
@@ -208,7 +211,7 @@ async function upsertPedido(pedido, client = pool) {
           toNumber(item.quantidade),
           toNumber(item.valor),
           toNumber(item.quantidade) !== null && toNumber(item.valor) !== null
-            ? toNumber(item.quantidade) * toNumber(item.valor)
+            ? toNumber(item.quantidade)! * toNumber(item.valor)!
             : null,
           toNumber(item.desconto),
           toJson(item),
@@ -218,7 +221,7 @@ async function upsertPedido(pedido, client = pool) {
   }
 }
 
-async function upsertNotaFiscal(nota, client = pool) {
+export async function upsertNotaFiscal(nota: any, client: DbClient = pool): Promise<void> {
   if (!nota?.id) return;
   await upsertContato(nota.contato, client);
 
@@ -242,7 +245,7 @@ async function upsertNotaFiscal(nota, client = pool) {
   );
 }
 
-async function upsertConta(table, conta, client = pool) {
+export async function upsertConta(table: 'contas_receber' | 'contas_pagar', conta: any, client: DbClient = pool): Promise<void> {
   if (!conta?.id) return;
   await upsertContato(conta.contato, client);
 
@@ -269,7 +272,7 @@ async function upsertConta(table, conta, client = pool) {
   );
 }
 
-async function syncState(entity, metadata = {}) {
+export async function syncState(entity: string, metadata: Record<string, unknown> = {}): Promise<void> {
   await pool.query(
     `INSERT INTO sync_state (entity, last_synced_at, metadata, updated_at)
      VALUES ($1, NOW(), $2, NOW())
@@ -280,12 +283,3 @@ async function syncState(entity, metadata = {}) {
     [entity, toJson(metadata)]
   );
 }
-
-module.exports = {
-  upsertContato,
-  upsertProduto,
-  upsertPedido,
-  upsertNotaFiscal,
-  upsertConta,
-  syncState,
-};

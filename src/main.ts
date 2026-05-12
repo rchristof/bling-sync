@@ -1,14 +1,13 @@
-require('dotenv').config();
+import 'dotenv/config';
+import { ensureSchema, pool } from './db';
+import { createApp, listen } from './app';
+import { log } from './logger';
+import { seedTokenFromFileIfNeeded } from './oauth';
+import { runBackfill, runReconciliation, startInitialBackfill } from './sync';
+import { startDailyReconciliation, startWorker } from './worker';
 
-const { ensureSchema, pool } = require('./db');
-const { createApp, listen } = require('./app');
-const { log } = require('./logger');
-const { seedTokenFromFileIfNeeded } = require('./oauth');
-const { runBackfill, runReconciliation, startInitialBackfill } = require('./sync');
-const { startDailyReconciliation, startWorker } = require('./worker');
-
-function parseCliOptions(args) {
-  const options = {};
+function parseCliOptions(args: string[]): Record<string, string | boolean> {
+  const options: Record<string, string | boolean> = {};
 
   for (const arg of args) {
     if (!arg.startsWith('--')) continue;
@@ -20,14 +19,14 @@ function parseCliOptions(args) {
   return options;
 }
 
-async function startServer() {
+async function startServer(): Promise<void> {
   await ensureSchema();
   await seedTokenFromFileIfNeeded();
 
   const app = createApp();
   const server = listen(app);
 
-  const shutdown = async signal => {
+  const shutdown = async (signal: string) => {
     log('info', 'shutdown requested', { signal });
     server.close(async () => {
       await pool.end();
@@ -43,7 +42,7 @@ async function startServer() {
   startInitialBackfill('startup');
 }
 
-async function main() {
+async function main(): Promise<void> {
   const command = process.argv[2] || 'serve';
   const options = parseCliOptions(process.argv.slice(3));
 
@@ -85,4 +84,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main };
+export { main };

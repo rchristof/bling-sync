@@ -1,10 +1,10 @@
-const { DAILY_RECONCILIATION_HOUR, WORKER_BATCH_SIZE, WORKER_INTERVAL_MS } = require('./config');
-const { pool } = require('./db');
-const { log } = require('./logger');
-const { runReconciliation } = require('./sync');
-const { processWebhookBatch } = require('./webhooks');
+import { DAILY_RECONCILIATION_HOUR, WORKER_BATCH_SIZE, WORKER_INTERVAL_MS } from './config';
+import { pool } from './db';
+import { log } from './logger';
+import { runReconciliation } from './sync';
+import { processWebhookBatch } from './webhooks';
 
-function startWorker() {
+export function startWorker(): void {
   let running = false;
 
   setInterval(async () => {
@@ -13,7 +13,7 @@ function startWorker() {
     try {
       await processWebhookBatch();
     } catch (err) {
-      log('error', 'worker loop failed', { error: err.message });
+      log('error', 'worker loop failed', { error: (err as Error).message });
     } finally {
       running = false;
     }
@@ -22,7 +22,7 @@ function startWorker() {
   log('info', 'worker started', { intervalMs: WORKER_INTERVAL_MS, batchSize: WORKER_BATCH_SIZE });
 }
 
-async function dailyReconciliationAlreadyRanToday() {
+async function dailyReconciliationAlreadyRanToday(): Promise<boolean> {
   const { rows } = await pool.query(
     `SELECT last_synced_at
      FROM sync_state
@@ -33,7 +33,7 @@ async function dailyReconciliationAlreadyRanToday() {
   return rows[0].last_synced_at.toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10);
 }
 
-function startDailyReconciliation() {
+export function startDailyReconciliation(): void {
   let running = false;
 
   setInterval(async () => {
@@ -48,7 +48,7 @@ function startDailyReconciliation() {
       await runReconciliation();
       log('info', 'daily reconciliation finished');
     } catch (err) {
-      log('error', 'daily reconciliation failed', { error: err.message });
+      log('error', 'daily reconciliation failed', { error: (err as Error).message });
     } finally {
       running = false;
     }
@@ -56,5 +56,3 @@ function startDailyReconciliation() {
 
   log('info', 'daily reconciliation scheduler started', { hour: DAILY_RECONCILIATION_HOUR });
 }
-
-module.exports = { startWorker, startDailyReconciliation };
