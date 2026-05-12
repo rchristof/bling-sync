@@ -1,7 +1,7 @@
 import { DAILY_RECONCILIATION_HOUR, WORKER_BATCH_SIZE, WORKER_INTERVAL_MS } from './config';
 import { pool } from './db';
 import { log } from './logger';
-import { runReconciliation } from './sync';
+import { isInitialBackfillRunning, runReconciliation } from './sync';
 import { processWebhookBatch } from './webhooks';
 
 export function startWorker(): void {
@@ -41,6 +41,10 @@ export function startDailyReconciliation(): void {
     if (running) return;
     if (hour !== DAILY_RECONCILIATION_HOUR) return;
     if (await dailyReconciliationAlreadyRanToday()) return;
+    if (isInitialBackfillRunning()) {
+      log('info', 'daily reconciliation deferred: initial backfill in progress');
+      return;
+    }
 
     running = true;
     try {

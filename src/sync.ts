@@ -344,6 +344,10 @@ export async function ensureInitialBackfill(): Promise<void> {
   }
 }
 
+export function isInitialBackfillRunning(): boolean {
+  return initialBackfillPromise !== null;
+}
+
 export function startInitialBackfill(reason = 'startup'): Promise<void> {
   if (initialBackfillPromise) {
     log('info', 'initial backfill already running', { reason });
